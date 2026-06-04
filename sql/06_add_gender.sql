@@ -1,0 +1,2 @@
+ALTER TABLE staging.hr_raw ADD COLUMN IF NOT EXISTS gender VARCHAR(20);
+ALTER TABLE core.hr_employee ADD COLUMN IF NOT EXISTS gender VARCHAR(20);

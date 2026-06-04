@@ -1,0 +1,68 @@
+{
+  "columns": {
+    "full_name": {
+      "patterns": ["Фамилия Имя Отчество", "full name", "фио"],
+      "required": true
+    },
+    "source_id": {
+      "patterns": ["Таб. номер", "табельный номер", "id"],
+      "required": true
+    },
+    "responsible": {
+      "patterns": ["Ответственный"],
+      "required": false
+    },
+    "position": {
+      "patterns": ["Должность по штатному расписанию", "должность", "position"],
+      "required": false
+    },
+    "department": {
+      "patterns": ["Отдел", "department"],
+      "required": false
+    },
+    "hire_date": {
+      "patterns": ["Дата приема", "дата приема", "hire date"],
+      "required": false
+    },
+    "state": {
+      "patterns": ["Состояние", "status"],
+      "required": false
+    },
+    "electrical_safety": {
+      "patterns": ["Элбезопасность"],
+      "required": false
+    },
+    "return_date": {
+      "patterns": ["дата возврата"],
+      "required": false
+    },
+    "height": {
+      "patterns": ["Высота"],
+      "required": false
+    },
+    "cradle": {
+      "patterns": ["Люльки"],
+      "required": false
+    },
+    "harmful": {
+      "patterns": ["Вредники"],
+      "required": false
+    },
+    "fire_safety": {
+      "patterns": ["Пожарная безопасность"],
+      "required": false
+    },
+    "pmk_safety": {
+      "patterns": ["Пмк безопасность"],
+      "required": false
+    },
+    "special_assessment": {
+      "patterns": ["Спецоценка"],
+      "required": false
+    },
+    "gender": {
+      "patterns": ["Пол", "gender", "sex"],
+      "required": false
+    }
+  }
+}

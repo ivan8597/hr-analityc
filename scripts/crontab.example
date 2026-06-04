@@ -1,0 +1,4 @@
+# HR ETL каждые 15 минут (cron на macOS/Linux).
+# Установка: crontab -e и вставьте строку ниже (путь проверьте).
+#
+# */15 * * * * /Users/ivanmerkulov/Desktop/Аналитика\ ш/scripts/run_scheduled_etl.sh

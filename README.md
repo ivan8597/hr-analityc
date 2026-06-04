@@ -12,6 +12,7 @@ Production-ready ETL для загрузки сотрудников, должн�
 - Fuzzy-маппинг колонок (rapidfuzz, порог 85%)
 - Advisory lock для предотвращения параллельных запусков
 - Автоматический аудит каждого запуска
+- Сохранение удалённых из Excel сотрудников с признаком `is_dismissed`
 
 ## Требования
 
@@ -66,6 +67,49 @@ make hr-etl
 
 Повторный запуск того же файла будет пропущен (идемпотентность по хешу).
 
+Если сотрудника удалить из Excel и снова запустить ETL, запись в БД не удалится.
+В `core.hr_employee` ей будет выставлено:
+
+- `is_dismissed = true`
+- `dismissed_at = <дата обнаружения отсутствия в Excel>`
+
+Если сотрудник снова появится в Excel, ETL автоматически вернёт `is_dismissed = false`.
+
+### Автообновление по расписанию (macOS)
+
+Чтобы после сохранения Excel данные подтягивались без ручного `make hr-etl`, включите фоновый запуск каждые **15 минут** (launchd):
+
+```bash
+make schedule-install
+```
+
+Другой интервал (например, каждые 30 минут):
+
+```bash
+make schedule-install ETL_INTERVAL_MIN=30
+```
+
+Проверка и логи:
+
+```bash
+make schedule-status
+make schedule-log
+```
+
+Отключить:
+
+```bash
+make schedule-uninstall
+```
+
+Альтернатива — **cron** (пример в `scripts/crontab.example`):
+
+```cron
+*/15 * * * * /Users/ivanmerkulov/Desktop/Аналитика\ ш/scripts/run_scheduled_etl.sh
+```
+
+Важно: ETL запускается только если файл **изменился** (хеш). Удалённых из Excel сотрудников помечает как уволенных. В дашборде нажмите «Обновить данные» или откройте страницу заново.
+
 ### 6. Запустить дашборд
 
 ```bash
@@ -91,6 +135,8 @@ make dash
 | `make down` | Остановить контейнеры |
 | `make reset-db` | Остановить и удалить volume БД |
 | `make hr-etl` | Загрузить Excel в PostgreSQL |
+| `make schedule-install` | Авто-ETL каждые N минут (launchd) |
+| `make schedule-uninstall` | Отключить авто-ETL |
 | `make dash` | Запустить HR-дашборд |
 | `make test` | Запустить тесты |
 | `make install-dev` | Установить зависимости для тестов |
