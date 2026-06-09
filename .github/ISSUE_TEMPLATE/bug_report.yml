@@ -1,0 +1,38 @@
+name: 🐛 Bug Report
+description: Сообщите об ошибке
+title: '[Bug]: '
+labels: ['bug']
+body:
+  - type: markdown
+    attributes:
+      value: Спасибо, что помогаете улучшать проект!
+  - type: textarea
+    id: description
+    attributes:
+      label: Описание ошибки
+      description: Что произошло?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Шаги для воспроизведения
+      placeholder: |
+        1. Запускаю `make hr-etl`
+        2. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Ожидаемое поведение
+  - type: textarea
+    id: logs
+    attributes:
+      label: Логи / Скриншоты
+      description: Вставьте логи из консоли или reject-файлы
+  - type: input
+    id: version
+    attributes:
+      label: Версия
+      description: Python, Docker, ОС
