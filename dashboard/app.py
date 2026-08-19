@@ -17,7 +17,7 @@ from dashboard.metrics import (
     format_hire_date,
     format_tenure,
     overview_kpis,
-    hypothesis_table_records,
+    hypothesis_tests,
     prepare_employees,
     quality_kpis,
     risk_table,
@@ -53,6 +53,44 @@ def _kpi_row(items: list[tuple[str, str, str]]) -> dbc.Row:
             )
         )
     return dbc.Row(cols, className="g-3 mb-4")
+
+
+def _hypothesis_card(result: dict, number: int):
+    decision_color = "success" if result["p_value"] < result["alpha"] else "warning"
+    return dbc.Card(
+        dbc.CardBody(
+            [
+                html.H5(f"Гипотеза {number}. {result['hypothesis']}", className="mb-3"),
+                html.Div([html.Strong("H0: "), result["h0"]], className="mb-2"),
+                html.Div([html.Strong("H1: "), result["h1"]], className="mb-3"),
+                dbc.Alert([html.Strong("Выбор статистического критерия: "), result["criterion"]], color="light", className="mb-3"),
+                html.H6("Таблица сопряжённости", className="mt-2"),
+                dbc.Table.from_dataframe(
+                    pd.DataFrame(result["contingency_rows"], columns=result["contingency_headers"]),
+                    striped=True,
+                    bordered=True,
+                    hover=True,
+                    size="sm",
+                    className="mb-3",
+                ),
+                dbc.Row(
+                    [
+                        dbc.Col([html.Div("Расчёт статистики", className="text-muted small"), html.Strong(result["statistic"])], md=3, xs=12),
+                        dbc.Col([html.Div("p-value", className="text-muted small"), html.Strong(result["p_value_display"])], md=2, xs=12),
+                        dbc.Col([html.Div("Уровень значимости", className="text-muted small"), html.Strong(f"α = {result['alpha']:.2f}")], md=2, xs=12),
+                        dbc.Col([html.Div("Сравнение", className="text-muted small"), html.Strong(result["comparison"])], md=5, xs=12),
+                    ],
+                    className="g-3 mb-3",
+                ),
+                dbc.Alert(
+                    [html.Strong(f"Решение по H0: {result['conclusion']}. "), result["business_conclusion"]],
+                    color=decision_color,
+                    className="mb-0",
+                ),
+            ]
+        ),
+        className="shadow-sm mb-4",
+    )
 
 
 def _filters_card() -> dbc.Card:
@@ -335,13 +373,7 @@ def create_app() -> dash.Dash:
                                 "Уровень значимости α = 0,05; p-value сравнивается с α.",
                                 className="text-muted",
                             ),
-                            dash_table.DataTable(
-                                id="hypothesis-tests-table",
-                                page_size=10,
-                                style_table={"overflowX": "auto"},
-                                style_cell={"textAlign": "left", "padding": "8px", "fontSize": "14px", "whiteSpace": "normal", "height": "auto", "minWidth": "140px"},
-                                style_header={"fontWeight": "bold", "backgroundColor": "#f8f9fa"},
-                            ),
+                            html.Div(id="hypothesis-tests-content"),
                             html.Div(
                                 "Интерпретация: если p-value < α, нулевая гипотеза отвергается; иначе статистически значимых оснований для её отклонения нет.",
                                 className="text-muted small mt-3 mb-3",
@@ -569,18 +601,16 @@ def create_app() -> dash.Dash:
         )
 
     @app.callback(
-        Output("hypothesis-tests-table", "data"),
-        Output("hypothesis-tests-table", "columns"),
+        Output("hypothesis-tests-content", "children"),
         Input("filtered-store", "data"),
         prevent_initial_call=False,
     )
     def update_statistics_tab(filtered_data):
         if not filtered_data:
-            return [], []
+            return html.Div()
         df = prepare_employees(pd.DataFrame(filtered_data))
-        records = hypothesis_table_records(df)
-        columns = [{"name": column, "id": column} for column in records[0]] if records else []
-        return records, columns
+        results = hypothesis_tests(df)
+        return [_hypothesis_card(result, number) for number, result in enumerate(results, start=1)]
 
     @app.callback(
         Output("quality-kpis", "children"),

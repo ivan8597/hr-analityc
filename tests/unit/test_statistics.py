@@ -30,6 +30,10 @@ def test_fisher_test_detects_concentration_of_harmful_conditions():
     assert result["p_value"] < 0.05
     assert result["conclusion"] == "Отклоняем H0"
     assert result["table"] == [[9, 4], [8, 692]]
+    assert result["h1"]
+    assert "p-value" in result["comparison"]
+    assert result["contingency_headers"][-1] == "Доля вредников"
+    assert result["business_conclusion"]
 
 
 def test_chi_square_test_detects_gender_difference_between_groups():
@@ -44,3 +48,7 @@ def test_chi_square_test_detects_gender_difference_between_groups():
     assert result["p_value"] < 0.05
     assert result["conclusion"] == "Отклоняем H0"
     assert result["statistic"].startswith("χ² = ")
+    assert result["h1"]
+    assert "α = 0.05" in result["comparison"]
+    assert result["contingency_headers"][-1] == "Доля женщин"
+    assert result["business_conclusion"]

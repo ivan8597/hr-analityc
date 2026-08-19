@@ -450,14 +450,22 @@ def hypothesis_tests(df: pd.DataFrame, alpha: float = STAT_ALPHA) -> list[dict]:
         "id": "harmful_by_department",
         "hypothesis": "Вредные условия труда связаны с участком специальных работ",
         "h0": "Доля сотрудников с вредными условиями одинакова в участке специальных работ и остальных подразделениях",
+        "h1": "Доля сотрудников с вредными условиями различается между участком специальных работ и остальными подразделениями",
         "criterion": "Точный критерий Фишера, двусторонний",
         "statistic": f"OR = {odds_ratio:.2f}" if pd.notna(odds_ratio) else "OR не определён",
         "p_value": float(fisher_p),
         "p_value_display": f"{fisher_p:.4g}",
         "alpha": alpha,
         "conclusion": _conclusion(float(fisher_p), alpha),
+        "comparison": f"p-value = {fisher_p:.4g} {'<' if fisher_p < alpha else '≥'} α = {alpha:.2f}",
         "sample": f"Спецработы: {int(special['harmful_bool'].sum())}/{special_total} ({_safe_pct(int(special['harmful_bool'].sum()), special_total)}%); остальные: {int(other['harmful_bool'].sum())}/{other_total} ({_safe_pct(int(other['harmful_bool'].sum()), other_total)}%)",
         "table": table_fisher,
+        "contingency_headers": ["Группа", "Вредные условия: Да", "Вредные условия: Нет", "Всего", "Доля вредников"],
+        "contingency_rows": [
+            ["Участок специальных работ", table_fisher[0][0], table_fisher[0][1], special_total, f"{_safe_pct(table_fisher[0][0], special_total)}%"],
+            ["Остальные подразделения", table_fisher[1][0], table_fisher[1][1], other_total, f"{_safe_pct(table_fisher[1][0], other_total)}%"],
+        ],
+        "business_conclusion": "Имеются статистически значимые основания считать, что вредные условия связаны с участком специальных работ. Контроль охраны труда следует в первую очередь сосредоточить на этом участке.",
     }
 
     group_mask = work["department_text"].str.contains("взиман|дэж|дэу", case=False, regex=True, na=False)
@@ -481,14 +489,22 @@ def hypothesis_tests(df: pd.DataFrame, alpha: float = STAT_ALPHA) -> list[dict]:
         "id": "gender_by_functional_group",
         "hypothesis": "Гендерная структура зависит от функционального типа подразделения",
         "h0": "Пол и функциональная группа подразделения независимы",
+        "h1": "Пол и функциональная группа подразделения связаны",
         "criterion": "Критерий χ² Пирсона независимости, без поправки Йейтса",
         "statistic": chi_statistic,
         "p_value": chi_p_float,
         "p_value_display": f"{chi_p_float:.4g}",
         "alpha": alpha,
         "conclusion": _conclusion(chi_p_float, alpha),
+        "comparison": f"p-value = {chi_p_float:.4g} {'<' if chi_p_float < alpha else '≥'} α = {alpha:.2f}",
         "sample": f"ДЭУ: {table_gender[0] if len(table_gender) > 0 else []}; взимание платы: {table_gender[1] if len(table_gender) > 1 else []}; min ожидаемая частота: {expected_min:.2f}",
         "table": table_gender,
+        "contingency_headers": ["Функциональная группа", "Мужчины", "Женщины", "Всего", "Доля женщин"],
+        "contingency_rows": [
+            ["ДЭУ", table_gender[0][0], table_gender[0][1], sum(table_gender[0]), f"{_safe_pct(table_gender[0][1], sum(table_gender[0]))}%"],
+            ["Взимание платы", table_gender[1][0], table_gender[1][1], sum(table_gender[1]), f"{_safe_pct(table_gender[1][1], sum(table_gender[1]))}%"],
+        ],
+        "business_conclusion": "Гендерная структура статистически значимо различается между ДЭУ и подразделениями взимания платы. Эти группы следует учитывать раздельно при планировании графиков, замещения и обучения.",
     }
     return [fisher_result, gender_result]
 
