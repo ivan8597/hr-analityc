@@ -404,3 +404,106 @@ def table_records(df: pd.DataFrame) -> tuple[list[dict], list[dict]]:
         for col in table_df.columns
     ]
     return table_df.to_dict("records"), columns
+
+
+STAT_ALPHA = 0.05
+
+
+def _safe_pct(numerator: int, denominator: int) -> float:
+    return round(numerator / denominator * 100, 1) if denominator else 0.0
+
+
+def _conclusion(p_value: float, alpha: float = STAT_ALPHA) -> str:
+    return "Отклоняем H0" if p_value < alpha else "Нет оснований отклонить H0"
+
+
+def hypothesis_tests(df: pd.DataFrame, alpha: float = STAT_ALPHA) -> list[dict]:
+    """Run the two course-level hypothesis tests used in the HR analysis.
+
+    H1 uses Fisher's exact test because the harmful-condition contingency table
+    contains a small subgroup. H2 uses Pearson's chi-square test of independence
+    for gender and functional group.
+    """
+    try:
+        from scipy.stats import chi2_contingency, fisher_exact
+    except ImportError as exc:
+        raise RuntimeError("Для статистических критериев требуется scipy") from exc
+
+    work = df.copy()
+    if "is_dismissed" in work.columns:
+        work = work[~work["is_dismissed"].apply(is_true)]
+    work["department_text"] = work["department"].fillna("").astype(str)
+    work["gender_text"] = work["gender"].fillna("").astype(str).str.lower().str.strip()
+    work["harmful_bool"] = work["harmful"].apply(is_true)
+
+    special_mask = work["department_text"].str.contains("спец|специальн", case=False, regex=True, na=False)
+    special = work[special_mask]
+    other = work[~special_mask]
+    table_fisher = [
+        [int(special["harmful_bool"].sum()), int((~special["harmful_bool"]).sum())],
+        [int(other["harmful_bool"].sum()), int((~other["harmful_bool"]).sum())],
+    ]
+    odds_ratio, fisher_p = fisher_exact(table_fisher, alternative="two-sided")
+    special_total = len(special)
+    other_total = len(other)
+    fisher_result = {
+        "id": "harmful_by_department",
+        "hypothesis": "Вредные условия труда связаны с участком специальных работ",
+        "h0": "Доля сотрудников с вредными условиями одинакова в участке специальных работ и остальных подразделениях",
+        "criterion": "Точный критерий Фишера, двусторонний",
+        "statistic": f"OR = {odds_ratio:.2f}" if pd.notna(odds_ratio) else "OR не определён",
+        "p_value": float(fisher_p),
+        "p_value_display": f"{fisher_p:.4g}",
+        "alpha": alpha,
+        "conclusion": _conclusion(float(fisher_p), alpha),
+        "sample": f"Спецработы: {int(special['harmful_bool'].sum())}/{special_total} ({_safe_pct(int(special['harmful_bool'].sum()), special_total)}%); остальные: {int(other['harmful_bool'].sum())}/{other_total} ({_safe_pct(int(other['harmful_bool'].sum()), other_total)}%)",
+        "table": table_fisher,
+    }
+
+    group_mask = work["department_text"].str.contains("взиман|дэж|дэу", case=False, regex=True, na=False)
+    group = work[group_mask & work["gender_text"].isin({"м", "ж", "муж", "жен"})].copy()
+    group["gender_norm"] = group["gender_text"].map({"м": "Мужчины", "муж": "Мужчины", "ж": "Женщины", "жен": "Женщины"})
+    group["functional_group"] = group["department_text"].str.contains("взиман", case=False, regex=True).map({True: "Взимание платы", False: "ДЭУ"})
+    gender_table_df = pd.crosstab(group["functional_group"], group["gender_norm"]).reindex(
+        index=["ДЭУ", "Взимание платы"], columns=["Мужчины", "Женщины"], fill_value=0
+    )
+    table_gender = gender_table_df.to_numpy().tolist()
+    if len(group) and (gender_table_df.to_numpy().sum(axis=0) > 0).all() and (gender_table_df.to_numpy().sum(axis=1) > 0).all():
+        chi2, chi_p, dof, expected = chi2_contingency(table_gender, correction=False)
+        chi_statistic = f"χ² = {chi2:.2f}; df = {dof}"
+        chi_p_float = float(chi_p)
+        expected_min = float(expected.min())
+    else:
+        chi_statistic = "Недостаточно данных"
+        chi_p_float = 1.0
+        expected_min = 0.0
+    gender_result = {
+        "id": "gender_by_functional_group",
+        "hypothesis": "Гендерная структура зависит от функционального типа подразделения",
+        "h0": "Пол и функциональная группа подразделения независимы",
+        "criterion": "Критерий χ² Пирсона независимости, без поправки Йейтса",
+        "statistic": chi_statistic,
+        "p_value": chi_p_float,
+        "p_value_display": f"{chi_p_float:.4g}",
+        "alpha": alpha,
+        "conclusion": _conclusion(chi_p_float, alpha),
+        "sample": f"ДЭУ: {table_gender[0] if len(table_gender) > 0 else []}; взимание платы: {table_gender[1] if len(table_gender) > 1 else []}; min ожидаемая частота: {expected_min:.2f}",
+        "table": table_gender,
+    }
+    return [fisher_result, gender_result]
+
+
+def hypothesis_table_records(df: pd.DataFrame, alpha: float = STAT_ALPHA) -> list[dict]:
+    """Return dashboard-friendly rows with no statistical calculation hidden in UI code."""
+    return [
+        {
+            "Гипотеза": result["hypothesis"],
+            "Критерий": result["criterion"],
+            "Статистика": result["statistic"],
+            "p-value": result["p_value_display"],
+            "α": alpha,
+            "Решение": result["conclusion"],
+            "Выборка и доли": result["sample"],
+        }
+        for result in hypothesis_tests(df, alpha)
+    ]

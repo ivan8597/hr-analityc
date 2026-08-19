@@ -11,3 +11,4 @@ xlrd>=2.0.1
 dash>=2.17.0
 dash-bootstrap-components>=1.6.0
 plotly>=5.22.0
+scipy>=1.11.0

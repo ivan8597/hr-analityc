@@ -17,6 +17,7 @@ from dashboard.metrics import (
     format_hire_date,
     format_tenure,
     overview_kpis,
+    hypothesis_table_records,
     prepare_employees,
     quality_kpis,
     risk_table,
@@ -325,6 +326,30 @@ def create_app() -> dash.Dash:
                         className="pt-3",
                     ),
                     dcc.Tab(
+                        label="Статистические критерии",
+                        value="statistics",
+                        children=[
+                            html.H4("Формальная проверка гипотез", className="mt-3"),
+                            html.P(
+                                "Расчёты выполняются на текущей выборке после применения фильтров. "
+                                "Уровень значимости α = 0,05; p-value сравнивается с α.",
+                                className="text-muted",
+                            ),
+                            dash_table.DataTable(
+                                id="hypothesis-tests-table",
+                                page_size=10,
+                                style_table={"overflowX": "auto"},
+                                style_cell={"textAlign": "left", "padding": "8px", "fontSize": "14px", "whiteSpace": "normal", "height": "auto", "minWidth": "140px"},
+                                style_header={"fontWeight": "bold", "backgroundColor": "#f8f9fa"},
+                            ),
+                            html.Div(
+                                "Интерпретация: если p-value < α, нулевая гипотеза отвергается; иначе статистически значимых оснований для её отклонения нет.",
+                                className="text-muted small mt-3 mb-3",
+                            ),
+                        ],
+                        className="pt-3",
+                    ),
+                    dcc.Tab(
                         label="Качество данных",
                         value="quality",
                         children=[
@@ -542,6 +567,20 @@ def create_app() -> dash.Dash:
             records,
             columns,
         )
+
+    @app.callback(
+        Output("hypothesis-tests-table", "data"),
+        Output("hypothesis-tests-table", "columns"),
+        Input("filtered-store", "data"),
+        prevent_initial_call=False,
+    )
+    def update_statistics_tab(filtered_data):
+        if not filtered_data:
+            return [], []
+        df = prepare_employees(pd.DataFrame(filtered_data))
+        records = hypothesis_table_records(df)
+        columns = [{"name": column, "id": column} for column in records[0]] if records else []
+        return records, columns
 
     @app.callback(
         Output("quality-kpis", "children"),
